@@ -1,0 +1,8 @@
+*.json
+*.props
+*.targets
+*.txt
+*.editorconfig
+*.db
+vkteams/obj/Debug/net6.0/vkteams.csproj.BuildWithSkipAnalyzers
+vkteams/obj/Debug/net6.0/vkteams.csproj.Up2Date
