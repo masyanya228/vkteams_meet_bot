@@ -84,13 +84,17 @@ namespace vkteams
         }
 
         public string SendOrEdit(object chatId, string text, object msgId = null, InlineKeyboardMarkup inlineKeyboard = null, string imageId = null)
-            => msgId == null
-                ? imageId == null
-                    ? Send(chatId, text, inlineKeyboard)
-                    : SendFile(chatId, imageId, text, inlineKeyboard)
-                : imageId == null
-                    ? Edit(chatId, msgId, text, inlineKeyboard)
-                    : ReplaceMessages(chatId, msgId, text, inlineKeyboard, imageId);
+        {
+            //chatId = "marsel.khabibullin@simbirsoft.com";//todo убрать тестовый блок
+
+            return msgId == null
+                        ? imageId == null
+                            ? Send(chatId, text, inlineKeyboard)
+                            : SendFile(chatId, imageId, text, inlineKeyboard)
+                        : imageId == null
+                            ? Edit(chatId, msgId, text, inlineKeyboard)
+                            : ReplaceMessages(chatId, msgId, text, inlineKeyboard, imageId);
+        }
 
         private string Send(object chatId, string text, InlineKeyboardMarkup inlineKeyboard = null)
         {
@@ -112,12 +116,14 @@ namespace vkteams
 
         public string Delete(object chatId, object messageId)
         {
+            //chatId = "marsel.khabibullin@simbirsoft.com";//todo убрать тестовый блок
+
             var response = new HttpClient().GetAsync(
                 APIUrl + "/messages/deleteMessages" + $"?token={Token}&chatId={chatId}&msgId={messageId}").GetAwaiter().GetResult();
             return response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
         }
 
-        public string ReplaceMessages(object chatId, object messageId, string text, InlineKeyboardMarkup inlineKeyboard = null, string imageId = null)
+        private string ReplaceMessages(object chatId, object messageId, string text, InlineKeyboardMarkup inlineKeyboard = null, string imageId = null)
         {
             Delete(chatId, messageId);
             return SendOrEdit(chatId, text, null, inlineKeyboard, imageId);

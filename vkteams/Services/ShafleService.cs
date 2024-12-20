@@ -1,8 +1,11 @@
 ﻿using vkteams.Entities;
 
-namespace vkteams
+namespace vkteams.Services
 {
-    public class Shafler
+    /// <summary>
+    /// Сервис для случайного создания пар
+    /// </summary>
+    public class ShafleService
     {
         public IEnumerable<Pair> Shafle(IEnumerable<Person> people, out IList<Pair> doubles, out Stack<Person> withOutPair, DateTime date)
         {

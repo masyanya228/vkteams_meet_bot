@@ -1,6 +1,6 @@
 ﻿namespace vkteams.Enums
 {
-    public enum ResponseType
+    public enum ReactionType
     {
         Liked,
         Disliked,

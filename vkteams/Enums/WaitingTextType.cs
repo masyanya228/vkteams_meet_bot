@@ -2,6 +2,9 @@
 
 namespace vkteams.Enums
 {
+    /// <summary>
+    /// Флаг, указывающий что ожидается в следующем сообщении от пользователя
+    /// </summary>
     public enum WaitingTextType
     {
         None = 0,
@@ -23,5 +26,8 @@ namespace vkteams.Enums
 
         [TGPointer("send_message")]
         Message = 9,
+
+        [TGPointer("set_text")]
+        Text = 10,
     }
 }

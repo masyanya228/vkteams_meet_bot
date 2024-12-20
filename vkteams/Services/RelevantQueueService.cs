@@ -1,6 +1,4 @@
-﻿using Buratino.Xtensions;
-
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 
 using vkteams.Entities;
 using vkteams.Enums;
@@ -8,9 +6,16 @@ using vkteams.Xtensions;
 
 namespace vkteams.Services
 {
+    /// <summary>
+    /// Сервис составления очереди просмотра анкет других пользователей
+    /// </summary>
     public class RelevantQueueService
     {
         private ConcurrentDictionary<Person, Queue<Form>> RelevantQueues = new ConcurrentDictionary<Person, Queue<Form>>();
+
+        /// <summary>
+        /// Берет из очереди следующую анкету
+        /// </summary>
         public Form PeekNext(Person person)
         {
             if (RelevantQueues.TryGetValue(person, out var forms) && forms.Any())
@@ -19,11 +24,15 @@ namespace vkteams.Services
             }
             else
             {
+                //todo - Тут баг, если кончились анкеты, выбрасывается исключение. Вместо этого нужно показать пользователю сообщение "Закончились анкеты, приходите позже"
                 RelevantQueues[person] = CreateQueue(person);
                 return RelevantQueues[person].Peek();
             }
         }
 
+        /// <summary>
+        /// Убирает из очереди следующую анкету
+        /// </summary>
         public Form Dequeue(Person person)
         {
             if (RelevantQueues.TryGetValue(person, out var forms) && forms.Any())
@@ -33,6 +42,11 @@ namespace vkteams.Services
             return null;
         }
 
+        /// <summary>
+        /// Создает релевантную очередь анкет для пользователя
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="NotImplementedException"></exception>
         private Queue<Form> CreateQueue(Person person)
         {
             var currentForm = person.GetCurrentForm();
@@ -41,22 +55,33 @@ namespace vkteams.Services
                 throw new ArgumentNullException("У вас пока нет анкеты. Заполните её, чтобы просматривать другие анкеты.");
             }
 
-            var watched = DBContext.WatchedForms.Query()
+            //Анкеты, которые я уже просмотрел
+            var requested = DBContext.ReactionOnForms.Query()
                 .Where(x => x.MainForm.Id == currentForm.Id)
                 .ToArray();
-            var watchedIds = watched.Select(x => x.Id).ToArray();
+            var requestedIds = requested.Select(x => x.RequestedForm.Id).ToArray();
 
-            var reportedPersons = watched
-                .Where(x => x.Response == ResponseType.Reported)
+            //Анкеты, которые меня лайкнули, и я им уже ответил
+            var allreadyResponsed = DBContext.ReactionOnForms.Query()
+                .Where(x => x.RequestedForm.Id == currentForm.Id)
+                .Where(x => x.IsResponsed)
+                .ToArray();
+            var allreadyResponsedIds = requested.Select(x => x.MainForm.Id).ToArray();
+
+            //Пользователи, на которых я жаловался за последние 7 дней
+            var reportedPersons = requested
+                .Where(x => x.Request == ReactionType.Reported)
                 .Where(x => x.Created > DateTime.Now.AddDays(-7))
-                .Select(x => x.Watched.Author.Id)
+                .Select(x => x.RequestedForm.Author.Id)
                 .Distinct()
                 .ToList();
 
             var availableForms = DBContext.Forms.Query()
-                .Where(x => x.IsActive && x.Author.Id != person.Id)
+                .Where(x => x.IsActive)
+                .Where(x => x.Author.Id != person.Id) // раскомментировать тестовый блок
                 .ToArray()
-                .Where(x => !watchedIds.Contains(x.Id))
+                .Where(x => !requestedIds.Contains(x.Id))
+                .Where(x => !allreadyResponsedIds.Contains(x.Id))
                 .Where(x => !reportedPersons.Contains(x.Author.Id))
                 .ToArray();
 

@@ -1,42 +1,83 @@
 ﻿using vkteams.Entities;
+using vkteams.Enums;
 
 namespace vkteams.Services
 {
     /// <summary>
-    /// Сервис постепенной рассылки первичных уведомлений о полученных лайках и сообщений
+    /// Сервис уведомлений о полученных лайках и взаимных лайках
     /// </summary>
     public class LikeDeliveryService
     {
-        private const int _resposiesPerIteration = 10;
-        private Queue<WatchedForm> Resonsies = new Queue<WatchedForm>();
-
+        public LogService LogService { get; }
+        public VkteamsService VkteamsService { get; }
+        
         public LikeDeliveryService(LogService logService, VkteamsService vkteamsService)
         {
             LogService = logService;
             VkteamsService = vkteamsService;
         }
 
-        public LogService LogService { get; }
-        public VkteamsService VkteamsService { get; }
-
-        public int SendResponsies()
+        /// <summary>
+        /// Возвращает полученные лайки
+        /// </summary>
+        /// <param name="person"></param>
+        /// <returns></returns>
+        public IEnumerable<ReactionOnForm> GetLikesByPerson(Person person)
         {
-            for (int i = 0; i < _resposiesPerIteration; i++)
-            {
-                var next = Resonsies.Dequeue();
-                if (next == null)
-                    return i;
-                var watched = DBContext.Forms.FindById(next.Watched.Id);
-                var mainForm = DBContext.Forms.FindById(next.MainForm.Id);
-                var watchedPerson = DBContext.Persons.FindById(watched.Author.Id);
-                var mainFormPerson = DBContext.Persons.FindById(mainForm.Author.Id);
+            person.Fetch();
+            var forms = DBContext.Forms.Query().Where(x => x.Author.Id == person.Id).ToArray();
+            var myFormIds = forms.Select(x => x.Id);
 
-                watchedPerson.SendMessage(VkteamsService, "Вашей анкетой кто-то заинтересовался!",
-                    new InlineKeyboardMarkup()
-                        .AddButtonRight("Посмотреть", $"/view_response/{next.Id}")
-                );
-            }
-            return _resposiesPerIteration;
+            var requestes = DBContext.ReactionOnForms.Query()
+                .Where(x => !x.IsResponsed)
+                .Where(x => myFormIds.Contains(x.RequestedForm.Id))
+                .Where(x => x.Request == ReactionType.Liked || x.Request == ReactionType.LikedWithMessage)
+                .ToArray();
+            return requestes;
+        }
+
+        /// <summary>
+        /// Возвращает взаимный лайки
+        /// </summary>
+        /// <param name="person"></param>
+        /// <returns></returns>
+        public IEnumerable<ReactionOnForm> GetMatchesByPerson(Person person)
+        {
+            person.Fetch();
+            var forms = DBContext.Forms.Query().Where(x => x.Author.Id == person.Id).ToArray();
+            var myFormIds = forms.Select(x => x.Id);
+
+            var requestesWhatILiked = DBContext.ReactionOnForms.Query()
+                .Where(x => myFormIds.Contains(x.RequestedForm.Id))
+                .Where(x => x.Request == ReactionType.Liked || x.Request == ReactionType.LikedWithMessage)
+                .Where(x => x.Response == ReactionType.Liked || x.Request == ReactionType.LikedWithMessage)
+                .ToArray();
+
+            var myLikesWithLikeResponsed = DBContext.ReactionOnForms.Query()
+                .Where(x => myFormIds.Contains(x.MainForm.Id))
+                .Where(x => x.Request == ReactionType.Liked || x.Request == ReactionType.LikedWithMessage)
+                .Where(x => x.Response == ReactionType.Liked || x.Request == ReactionType.LikedWithMessage)
+                .ToArray();
+
+            return requestesWhatILiked.Concat(myLikesWithLikeResponsed).OrderBy(x => x.ResponseTime);
+        }
+
+        public string SendNewLikesNotification(Person person)
+        {
+            var likes = GetLikesByPerson(person);
+            return person.SendMessage(VkteamsService, $"Вашей анкетой кто-то заинтересовался!" +
+                $"\r\nУ вас {likes.Count()} новых лайков.",
+                new InlineKeyboardMarkup()
+                    .AddButtonRight("Посмотреть лайки", "/view_likes"));
+        }
+
+        public string SendNewMathesNotification(Person person)
+        {
+            var likes = GetMatchesByPerson(person);
+            return person.SendMessage(VkteamsService, $"Это МАТЧ!" +
+                $"\r\nУ вас {likes.Count()} взаимных лайков.",
+                new InlineKeyboardMarkup()
+                    .AddButtonRight("Посмотреть взаимные лайки", "/view_mathes"));
         }
     }
 }

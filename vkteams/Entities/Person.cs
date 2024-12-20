@@ -8,18 +8,37 @@ namespace vkteams.Entities
     /// </summary>
     public class Person : EntityBase
     {
+        /// <summary>
+        /// Текущая активная форма
+        /// </summary>
         public Form CurrentForm { get; set; }
+
+        /// <summary>
+        /// Логин и, по совместительству, chatId пользователя
+        /// </summary>
         public string TeamsUserLogin { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }
         public string CurrentCity { get; set; }
-        public DateTime Created { get; set; } = DateTime.Now;
-        public DateTime LastActivity { get; set; } = DateTime.Now;
         public int Age { get; set; }
+
+        ///<inheritdoc cref="Enums.Sex"/>
         public Sex Sex { get; set; }
-        public WaitingTextType WaitingTextType { get; set; }
+
+        ///<inheritdoc cref="WaitingTextType"/>
+        public WaitingTextType WaitingText { get; set; }
+
+        /// <summary>
+        /// vkteams fileId
+        /// </summary>
         public string ImageId { get; set; }
+
+        /// <summary>
+        /// Анкета, которой пользователь хочет отправить сообщение
+        /// </summary>
         public Form FormToMessage { get; set; }
+
+        public DateTime LastActivity { get; set; } = DateTime.Now;
 
         public Form GetCurrentForm()
         {

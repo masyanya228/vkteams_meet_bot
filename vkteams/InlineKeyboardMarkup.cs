@@ -37,5 +37,21 @@ namespace vkteams
             Rows.Last().Buttons.Add(new InlineKeyboardMarkupButton(title, callbackQuery));
             return this;
         }
+
+        public InlineKeyboardMarkup AddUrlDown(string title, string url, string style = null)
+        {
+            Rows.Add(new InlineKeyboardMarkupRow(new InlineKeyboardMarkupButton(title, url, style)));
+            return this;
+        }
+
+        public InlineKeyboardMarkup AddUrlRight(string title, string url, string style = null)
+        {
+            if (Rows.Count == 0)
+            {
+                Rows.Add(new InlineKeyboardMarkupRow());
+            }
+            Rows.Last().Buttons.Add(new InlineKeyboardMarkupButton(title, url, style));
+            return this;
+        }
     }
 }

@@ -11,7 +11,7 @@
         public int timestamp { get; set; }
         public string fileId { get; set; }
         public string type { get; set; }//image
-        public int userId { get; set; }
+        public string userId { get; set; }
         public string firstName { get; set; }
         public string lastName { get; set; }
         public string caption { get; set; }

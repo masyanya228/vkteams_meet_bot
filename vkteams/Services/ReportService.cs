@@ -3,8 +3,14 @@ using vkteams.Enums;
 
 namespace vkteams.Services
 {
+    /// <summary>
+    /// Сервис подсчитывает количество жалоб и выдает страйки
+    /// </summary>
     public class ReportService
     {
+        /// <summary>
+        /// Период блокировки аккаунта при 1-ом, 2-ом и последующих страйках
+        /// </summary>
         public readonly int[] CallDownInDays = new int[3]
         {
             1,
@@ -12,6 +18,9 @@ namespace vkteams.Services
             7
         };
 
+        /// <summary>
+        /// Количество репортов, достаточных для получения страйка
+        /// </summary>
         public const int ReportCountToStrike = 10;
 
         public LogService LogService { get; }
@@ -32,9 +41,9 @@ namespace vkteams.Services
         public bool Report(Person person, Form form)
         {
             var strikes = DBContext.Strikes.Query().Where(x => x.Person.Id == person.Id).ToArray();
-            var myReports = DBContext.WatchedForms.Query()
-                .Where(x => x.Response == ResponseType.Reported)
-                .Where(x => x.Watched.Author.Id == person.Id)
+            var myReports = DBContext.ReactionOnForms.Query()
+                .Where(x => x.Request == ReactionType.Reported)
+                .Where(x => x.RequestedForm.Author.Id == person.Id)
                 .Where(x => x.Created > DateTime.Now.AddDays(-7))
                 .ToArray();
             if (strikes.Any())

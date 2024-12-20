@@ -1,7 +1,5 @@
 ﻿using LiteDB;
 
-using Microsoft.VisualBasic;
-
 using vkteams.Entities;
 
 namespace vkteams
@@ -12,14 +10,14 @@ namespace vkteams
         public static ILiteCollection<Person> Persons;
         public static ILiteCollection<Pair> Pairs;
         public static ILiteCollection<Form> Forms;
-        public static ILiteCollection<WatchedForm> WatchedForms;
+        public static ILiteCollection<ReactionOnForm> ReactionOnForms;
         public static ILiteCollection<Strike> Strikes;
         static DBContext()
         {
             Persons = DB.GetCollection<Person>();
             Pairs = DB.GetCollection<Pair>();
             Forms = DB.GetCollection<Form>();
-            WatchedForms = DB.GetCollection<WatchedForm>();
+            ReactionOnForms = DB.GetCollection<ReactionOnForm>();
             Strikes = DB.GetCollection<Strike>();
 
             DB.Mapper.EmptyStringToNull = false;
@@ -31,8 +29,8 @@ namespace vkteams
             DB.Mapper.Entity<Pair>().DbRef(x => x.SubPerson);
             DB.Mapper.Entity<Pair>().DbRef(x => x.ThirdPerson);
             DB.Mapper.Entity<Form>().DbRef(x => x.Author);
-            DB.Mapper.Entity<WatchedForm>().DbRef(x => x.MainForm);
-            DB.Mapper.Entity<WatchedForm>().DbRef(x => x.Watched);
+            DB.Mapper.Entity<ReactionOnForm>().DbRef(x => x.MainForm);
+            DB.Mapper.Entity<ReactionOnForm>().DbRef(x => x.RequestedForm);
             DB.Mapper.Entity<Strike>().DbRef(x => x.Person);
         }
     }

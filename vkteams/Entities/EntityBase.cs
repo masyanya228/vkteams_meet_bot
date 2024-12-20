@@ -1,5 +1,7 @@
 ﻿using LiteDB;
 
+using vkteams.Helpers;
+
 namespace vkteams.Entities
 {
     public class EntityBase
@@ -7,7 +9,12 @@ namespace vkteams.Entities
         [BsonId]
         public Guid Id { get; set; }
 
-        public DateTime Created { get; set; }
+        public DateTime Created { get; set; } = DateTime.Now;
+
+        public void Fetch()
+        {
+            EntityFetchHelper.Fetch(this);
+        }
 
         public static bool operator == (EntityBase f1, EntityBase f2)
         {

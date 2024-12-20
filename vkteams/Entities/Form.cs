@@ -89,7 +89,7 @@ namespace vkteams.Entities
                 text = $"😁 {person.FirstName}, {Age}";
                 if (City != default)
                     text += $", {City}";
-                text += $"\r\n{Text}" +
+                text += $"\r\n\r\n{Text}" +
                     $"\r\n\r\nЭта информация видна только вам:" +
                     $"\r\nИщем: {SexOfPair.GetAttribute<DisplayTextAttribute>().NameGenitive}" +
                     $"\r\nВозрастом: {GetAgeOfPairRange()}";
@@ -99,21 +99,21 @@ namespace vkteams.Entities
                 text = $"🚑 {person.FirstName}";
                 if (City != default)
                     text += $", {City}";
-                text += $"{Text}";
+                text += $"\r\n\r\n{Text}";
             }
             else if (Type == FormType.Club)
             {
                 text = $"🎭 {person.FirstName}";
                 if (City != default)
                     text += $", {City}";
-                text += $"{Text}";
+                text += $"\r\n\r\n{Text}";
             }
             else
             {
-                text = $"{Type} {person.FirstName}";
+                text = $"🗽 {person.FirstName}";
                 if (City != default)
                     text += $", {City}";
-                text += $"{Text}";
+                text += $"\r\n\r\n{Text}";
             }
             return text;
         }
@@ -126,28 +126,28 @@ namespace vkteams.Entities
                 text = $"😁 {person.FirstName}, {Age}";
                 if (City != default)
                     text += $", {City}";
-                text += $"\r\n{Text}";
+                text += $"\r\n\r\n{Text}";
             }
             else if (Type == FormType.Help)
             {
                 text = $"🚑 {person.FirstName}";
                 if (City != default)
                     text += $", {City}";
-                text += $"{Text}";
+                text += $"\r\n\r\n{Text}";
             }
             else if (Type == FormType.Club)
             {
                 text = $"🎭 {person.FirstName}";
                 if (City != default)
                     text += $", {City}";
-                text += $"{Text}";
+                text += $"\r\n\r\n{Text}";
             }
             else
             {
                 text = $"🗽 {person.FirstName}";
                 if (City != default)
                     text += $", {City}";
-                text += $"{Text}";
+                text += $"\r\n\r\n{Text}";
             }
             return text;
         }

@@ -2,6 +2,9 @@
 
 namespace vkteams.Enums
 {
+    /// <summary>
+    /// Пол пользователя
+    /// </summary>
     public enum Sex
     {
         None = 0,

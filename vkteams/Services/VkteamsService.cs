@@ -2,12 +2,16 @@
 using Buratino.Xtensions;
 
 using System.Reflection;
+
 using vkteams.DTOs.Teams;
 using vkteams.Entities;
 using vkteams.Enums;
 
 namespace vkteams.Services
 {
+    /// <summary>
+    /// Сервис взаимодействия с пользователем через VKTeams
+    /// </summary>
     public class VkteamsService
     {
         public RelevantQueueService QueueService = new RelevantQueueService();
@@ -18,9 +22,9 @@ namespace vkteams.Services
         {
             VKTeamsAPI = vKTeamsAPI;
             VKTeamsAPI.UpdateEvent += PipeLine;
-            vKTeamsAPI.Listen();
             ReportService = new ReportService(logService, this);
             LikeDeliveryService = new LikeDeliveryService(logService, this);
+            vKTeamsAPI.Listen();
         }
 
         private void PipeLine(object sender, Root updates)
@@ -61,10 +65,10 @@ namespace vkteams.Services
             var com = ParseCommand(sourceEvent.payload.text, out string[] args);
             if (com == null)
             {
-                if (person.WaitingTextType != WaitingTextType.None)
+                if (person.WaitingText != WaitingTextType.None)
                 {
-                    com = person.WaitingTextType.GetAttribute<TGPointerAttribute>()?.Pointers.SingleOrDefault();
-                    if (person.WaitingTextType == WaitingTextType.Message)
+                    com = person.WaitingText.GetAttribute<TGPointerAttribute>()?.Pointers.SingleOrDefault();
+                    if (person.WaitingText == WaitingTextType.Message)
                     {
                         args = new string[1] { sourceEvent.payload.text };
                     }
@@ -163,12 +167,17 @@ namespace vkteams.Services
         [TGPointer("start", "menu")]
         public string Start(object chatId, object messageId, Person person)
         {
+            var newLikes = LikeDeliveryService.GetLikesByPerson(person);
+            var newMatches = LikeDeliveryService.GetMatchesByPerson(person);
             return VKTeamsAPI.SendOrEdit(chatId, "/rules - правила" +
                 "\r\n/description - в чем смысл этого бота",
-                messageId, new InlineKeyboardMarkup(
-                    new InlineKeyboardMarkupButton("Смотреть анкеты", "/watch_forms"),
-                    new InlineKeyboardMarkupButton("Моя анкета", "/my_form")
-                ));
+                messageId,
+                new InlineKeyboardMarkup()
+                    .AddButtonRight("🔍 Смотреть анкеты", "/watch_forms")
+                    .AddButtonRight("Моя анкета", "/my_form")
+                    .AddButtonDownIf(()=> newMatches.Any(), $"({newMatches.Count()}) Матчи", "/view_matches")
+                    .AddButtonDownIf(()=> newLikes.Any(), $"({newLikes.Count()}) Лайки", "/view_likes")
+            );
         }
 
         [TGPointer("description")]
@@ -229,6 +238,8 @@ namespace vkteams.Services
                     return SelectAgeOfPairMin(chatId, messageId, person);
                 else if (currentForm.AgeOfPairMax == default)
                     return SelectAgeOfPairMax(chatId, messageId, person);
+                else if (currentForm.Text == default)
+                    return SelectText(chatId, messageId, person);
                 else if (currentForm.ImageId == default)
                     return SelectImage(chatId, messageId, person);
             }
@@ -238,6 +249,10 @@ namespace vkteams.Services
                     return SelectAge(chatId, messageId, person);
                 else if (currentForm.City == default)
                     return SelectCity(chatId, messageId, person);
+                else if (currentForm.Text == default)
+                    return SelectText(chatId, messageId, person);
+                else if (currentForm.ImageId == default)
+                    return SelectImage(chatId, messageId, person);
             }
             else if (currentForm.Type == FormType.Club)
             {
@@ -245,6 +260,10 @@ namespace vkteams.Services
                     return SelectAge(chatId, messageId, person);
                 else if (currentForm.City == default)
                     return SelectCity(chatId, messageId, person);
+                else if (currentForm.Text == default)
+                    return SelectText(chatId, messageId, person);
+                else if (currentForm.ImageId == default)
+                    return SelectImage(chatId, messageId, person);
             }
             else if (currentForm.Type == FormType.Regular)
             {
@@ -252,6 +271,10 @@ namespace vkteams.Services
                     return SelectAge(chatId, messageId, person);
                 else if (currentForm.City == default)
                     return SelectCity(chatId, messageId, person);
+                else if (currentForm.Text == default)
+                    return SelectText(chatId, messageId, person);
+                else if (currentForm.ImageId == default)
+                    return SelectImage(chatId, messageId, person);
             }
             if (!currentForm.IsCompleted)
             {
@@ -261,6 +284,8 @@ namespace vkteams.Services
                 DBContext.Forms.Update(currentForm);
             }
 
+            var newLikes = LikeDeliveryService.GetLikesByPerson(person);
+            var newMatches = LikeDeliveryService.GetMatchesByPerson(person);
             string text = currentForm.GetFormForAuthor(person);
 
             return VKTeamsAPI.SendOrEdit(chatId,
@@ -268,6 +293,8 @@ namespace vkteams.Services
                 messageId,
                 new InlineKeyboardMarkup()
                     .AddButtonDown("🔍 Смотреть анкеты", "/watch_forms")
+                    .AddButtonDownIf(() => newMatches.Any(), $"({newMatches.Count()}) Матчи", "/view_matches")
+                    .AddButtonDownIf(() => newLikes.Any(), $"({newLikes.Count()}) Лайки", "/view_likes")
                     .AddButtonDown("📝 Заполнить заново", "/create_form")
                     .AddButtonDownIf(() => currentForm.IsActive, "❌ Скрыть анкету из поиска", "/hide_form")
                     .AddButtonDownIf(() => !currentForm.IsActive, "✅ Активировать анкету", "/show_form"),
@@ -277,7 +304,7 @@ namespace vkteams.Services
 
         private string SelectImage(object chatId, object messageId, Person person)
         {
-            person.WaitingTextType = WaitingTextType.Image;
+            person.WaitingText = WaitingTextType.Image;
             DBContext.Persons.Update(person);
             
             var currentForm = DBContext.Forms.FindById(person.CurrentForm.Id);
@@ -292,9 +319,24 @@ namespace vkteams.Services
             );
         }
 
+        private string SelectText(object chatId, object messageId, Person person)
+        {
+            person.WaitingText = WaitingTextType.Text;
+            DBContext.Persons.Update(person);
+
+            var currentForm = DBContext.Forms.FindById(person.CurrentForm.Id);
+
+            return VKTeamsAPI.SendOrEdit(chatId,
+                $"Напишите текст вашей анкеты.",
+                messageId,
+                new InlineKeyboardMarkup()
+                    .AddButtonDownIf(() => currentForm.Type == FormType.Frendship, $"Оставить пустым", $"/set_textNone")
+            );
+        }
+
         private string SelectAgeOfPairMax(object chatId, object messageId, Person person)
         {
-            person.WaitingTextType = WaitingTextType.AgeOfPairMax;
+            person.WaitingText = WaitingTextType.AgeOfPairMax;
             DBContext.Persons.Update(person);
 
             var currentForm = DBContext.Forms.FindById(person.CurrentForm.Id);
@@ -310,7 +352,7 @@ namespace vkteams.Services
 
         private string SelectAgeOfPairMin(object chatId, object messageId, Person person)
         {
-            person.WaitingTextType = WaitingTextType.AgeOfPairMin;
+            person.WaitingText = WaitingTextType.AgeOfPairMin;
             DBContext.Persons.Update(person);
             return VKTeamsAPI.SendOrEdit(chatId,
                 $"Укажите минимальный возраст друга:",
@@ -335,7 +377,7 @@ namespace vkteams.Services
 
         private string SelectCity(object chatId, object messageId, Person person)
         {
-            person.WaitingTextType = WaitingTextType.City;
+            person.WaitingText = WaitingTextType.City;
             DBContext.Persons.Update(person);
             return VKTeamsAPI.SendOrEdit(chatId,
                 $"Укажите ваш город:",
@@ -359,7 +401,7 @@ namespace vkteams.Services
 
         private string SelectAge(object chatId, object messageId, Person person)
         {
-            person.WaitingTextType = WaitingTextType.Age;
+            person.WaitingText = WaitingTextType.Age;
             DBContext.Persons.Update(person);
             return VKTeamsAPI.SendOrEdit(chatId,
                 $"Укажите ваш возраст:",
@@ -384,6 +426,213 @@ namespace vkteams.Services
             );
         }
 
+        [TGPointer("view_matches")]
+        private string ViewMatches(object chatId, object messageId, Person person)
+        {
+            var currentForm = person.GetCurrentForm();
+            if (currentForm is null)
+            {
+                return VKTeamsAPI.SendOrEdit(chatId, "Чтобы просматривать чужие анкеты, для начала заполни свою.", messageId,
+                    new InlineKeyboardMarkup(
+                        new InlineKeyboardMarkupButton("📝 Заполнить", "/create_form"),
+                        new InlineKeyboardMarkupButton("🔙 Назад", "/menu")
+                    ));
+            }
+
+            var reactions = LikeDeliveryService.GetMatchesByPerson(person);
+            if (!reactions.Any())
+            {
+                return Watch_forms(chatId, messageId, person);
+            }
+
+            string text = string.Join("\r\n", reactions.Select(x => $"{x.GetLinkOnOtherAuthor(person)}"));
+
+            return VKTeamsAPI.SendOrEdit(
+                chatId,
+                text,
+                messageId,
+                new InlineKeyboardMarkup()
+                    .AddButtonDown("Моя анкета", "/my_form")
+            );
+        }
+
+        [TGPointer("view_match")]
+        private string ViewMatches(object chatId, object messageId, Person person, Guid reactionId)
+        {
+            var currentForm = person.GetCurrentForm();
+            if (currentForm is null)
+            {
+                return VKTeamsAPI.SendOrEdit(chatId, "Чтобы просматривать чужие анкеты, для начала заполни свою.", messageId,
+                    new InlineKeyboardMarkup(
+                        new InlineKeyboardMarkupButton("📝 Заполнить", "/create_form"),
+                        new InlineKeyboardMarkupButton("🔙 Назад", "/menu")
+                    ));
+            }
+
+            var currentReaction = DBContext.ReactionOnForms.FindById(reactionId);
+            if (currentReaction == null)
+            {
+                return Watch_forms(chatId, messageId, person);
+            }
+
+            currentReaction.Fetch();
+            var author = DBContext.Persons.FindById(currentReaction.MainForm.Author.Id);
+
+            string text = currentReaction.MainForm.GetForm(author);
+            if (currentReaction.Request == ReactionType.LikedWithMessage)
+                text += $"\r\n\r\nСообщение: {currentReaction.Message}";
+            text += $"\r\n\r\nСсылка: @[{author.TeamsUserLogin}]";
+            text += $"\r\n👍 МАТЧ 👍";
+
+            return VKTeamsAPI.SendOrEdit(
+                chatId,
+                text,
+                messageId,
+                null,
+                currentReaction.MainForm.ImageId);
+        }
+
+        [TGPointer("view_likes")]
+        private string ViewLikes(object chatId, object messageId, Person person)
+        {
+            var currentForm = person.GetCurrentForm();
+            if (currentForm is null)
+            {
+                return VKTeamsAPI.SendOrEdit(chatId, "Чтобы просматривать чужие анкеты, для начала заполни свою.", messageId,
+                    new InlineKeyboardMarkup(
+                        new InlineKeyboardMarkupButton("📝 Заполнить", "/create_form"),
+                        new InlineKeyboardMarkupButton("🔙 Назад", "/menu")
+                    ));
+            }
+
+            var currentReaction = LikeDeliveryService.GetLikesByPerson(person).FirstOrDefault();
+            if (currentReaction is null)
+            {
+                return Watch_forms(chatId, messageId, person);
+            }
+
+            currentReaction.Fetch();
+            var author = DBContext.Persons.FindById(currentReaction.MainForm.Author.Id);
+
+            string text = currentReaction.MainForm.GetForm(author);
+            if (currentReaction.Request == ReactionType.LikedWithMessage)
+                text += $"\r\n\r\nСообщение: {currentReaction.Message}";
+            text += $"\r\n👍 лайк";
+
+            return VKTeamsAPI.SendOrEdit(
+                chatId,
+                text,
+                null,
+                new InlineKeyboardMarkup()
+                    .AddButtonRight("👍", $"/request_like/{currentReaction.Id}")
+                    .AddButtonRight("👎", $"/request_dislike/{currentReaction.Id}")
+                    .AddButtonDown("👮‍♀️ Жалоба", $"/request_report/{currentReaction.Id}"),
+                currentReaction.MainForm.ImageId);
+        }
+
+        [TGPointer("request_like")]
+        private string RequestLike(object chatId, object messageId, Person person, Guid requestId)
+        {
+            var request = DBContext.ReactionOnForms.FindById(requestId);
+            var form = DBContext.Forms.FindById(request.MainForm.Id);
+            var author = DBContext.Persons.FindById(form.Author.Id);
+
+            request.IsResponsed = true;
+            request.ResponseTime = DateTime.Now;
+            request.Response = ReactionType.Liked;
+            DBContext.ReactionOnForms.Update(request);
+
+            //Убираем лишние кнопки из сообщения
+            VKTeamsAPI.SendOrEdit(chatId, form.GetForm(author), messageId,
+                new InlineKeyboardMarkup()
+                    .AddButtonDown("Ответный лайк", "")
+                    .AddUrlDown($"Чат с {author.FirstName}", $"@{author.TeamsUserLogin}")
+                    .AddUrlDown($"Чат с {author.FirstName}", $"@[{author.TeamsUserLogin}]")
+                    .AddUrlDown($"Чат с {author.FirstName}", $"https://myteam.mail.ru/webim/{author.TeamsUserLogin}"),
+                form.ImageId
+            );
+
+            LikeDeliveryService.SendNewMathesNotification(author);
+
+            var currentReaction = LikeDeliveryService.GetLikesByPerson(person).FirstOrDefault();
+            if (currentReaction is null)
+            {
+                return Watch_forms(chatId, null, person);
+            }
+            return ViewLikes(chatId, null, person);
+        }
+
+        [TGPointer("request_dislike")]
+        private string RequestDislike(object chatId, object messageId, Person person, Guid requestId)
+        {
+            var request = DBContext.ReactionOnForms.FindById(requestId);
+            var form = DBContext.Forms.FindById(request.MainForm.Id);
+            var author = DBContext.Persons.FindById(form.Author.Id);
+
+            request.IsResponsed = true;
+            request.ResponseTime = DateTime.Now;
+            request.Response = ReactionType.Disliked;
+            DBContext.ReactionOnForms.Update(request);
+
+            //Убираем лишние кнопки из сообщения
+            VKTeamsAPI.SendOrEdit(chatId,
+                form.GetForm(author) + $"\r\n👎 дизлайк",
+                messageId,
+                null,
+                form.ImageId
+            );
+
+            var currentReaction = LikeDeliveryService.GetLikesByPerson(person).FirstOrDefault();
+            if (currentReaction is null)
+            {
+                return Watch_forms(chatId, null, person);
+            }
+            return ViewLikes(chatId, null, person);
+        }
+
+        [TGPointer("request_report")]
+        private string RequestReport(object chatId, object messageId, Person person, Event source, Guid requestId)
+        {
+            var request = DBContext.ReactionOnForms.FindById(requestId);
+            var form = DBContext.Forms.FindById(request.MainForm.Id);
+            var author = DBContext.Persons.FindById(form.Author.Id);
+
+            request.IsResponsed = true;
+            request.ResponseTime = DateTime.Now;
+            request.Response = ReactionType.Reported;
+            DBContext.ReactionOnForms.Update(request);
+
+            bool isStriked = ReportService.Report(author, form);
+            if (!isStriked)
+            {
+                VKTeamsAPI.AnswerCallbackQuery(source.payload.queryId, "Жалоба отправлена. Анкета скрыта от вас.");
+            }
+
+            //Убираем лишние кнопки из сообщения
+            VKTeamsAPI.SendOrEdit(chatId,
+                form.GetForm(author) + $"\r\n👮‍♀️ жалоба",
+                messageId,
+                null,
+                form.ImageId
+            );
+
+            if (isStriked)
+            {
+                VKTeamsAPI.SendOrEdit(
+                    chatId,
+                    "Пользователь собрал 10 жалоб и получил страйк!",
+                    null
+                );
+            }
+
+            var currentReaction = LikeDeliveryService.GetLikesByPerson(person).FirstOrDefault();
+            if (currentReaction is null)
+            {
+                return Watch_forms(chatId, null, person);
+            }
+            return ViewLikes(chatId, null, person);
+        }
+
         [TGPointer("watch_forms")]
         private string Watch_forms(object chatId, object messageId, Person person)
         {
@@ -402,7 +651,7 @@ namespace vkteams.Services
             {
                 return VKTeamsAPI.SendOrEdit(
                     chatId,
-                    $"Кажется у нас кончились анкета:(" +
+                    $"Кажется у нас кончились анкеты:(" +
                     $"\r\nНо вы не расстраивайтесь, попробуйте вернусть завтра." +
                     $"\r\nВаша анкета осталась активной. Возможно она кого-то заинтересует, тогда вам придет уведомление.",
                     null,
@@ -429,23 +678,29 @@ namespace vkteams.Services
         {
             var form = DBContext.Forms.FindById(formId);
             var author = DBContext.Persons.FindById(form.Author.Id);
-            DBContext.WatchedForms.Insert(new WatchedForm()
-            {
-                MainForm = new Form()
-                {
-                    Id = person.CurrentForm.Id
-                },
-                Watched = form,
-                Response = ResponseType.Liked,
-            });
 
             QueueService.Dequeue(person);
 
-            VKTeamsAPI.SendOrEdit(chatId, form.GetForm(author), messageId,
-                new InlineKeyboardMarkup()
-                    .AddButtonDown("Лайк", ""),
+            //Убираем лишние кнопки из сообщения
+            VKTeamsAPI.SendOrEdit(chatId,
+                form.GetForm(author) + $"\r\n👍 лайк",
+                messageId,
+                null,
                 form.ImageId
-                );
+            );
+
+            var isMatch = SetReaction(person.CurrentForm, form, ReactionType.Liked);
+            if (isMatch)
+            {
+                //Отправляем уведомления о матчах
+                LikeDeliveryService.SendNewMathesNotification(author);
+                LikeDeliveryService.SendNewMathesNotification(person);
+            }
+            else
+            {
+                //Отправляем уведомление о лайке
+                LikeDeliveryService.SendNewLikesNotification(author);
+            }
 
             return Watch_forms(chatId, null, person);
         }
@@ -455,23 +710,25 @@ namespace vkteams.Services
         {
             var form = DBContext.Forms.FindById(formId);
             var author = DBContext.Persons.FindById(form.Author.Id);
-            DBContext.WatchedForms.Insert(new WatchedForm()
+            DBContext.ReactionOnForms.Insert(new ReactionOnForm()
             {
                 MainForm = new Form()
                 {
                     Id = person.CurrentForm.Id
                 },
-                Watched = form,
-                Response = ResponseType.Disliked,
+                RequestedForm = form,
+                Request = ReactionType.Disliked,
             });
 
             QueueService.Dequeue(person);
 
-            VKTeamsAPI.SendOrEdit(chatId, form.GetForm(author), messageId,
-                new InlineKeyboardMarkup()
-                    .AddButtonDown("Дизлайк", ""),
+            //Убираем лишние кнопки из сообщения
+            VKTeamsAPI.SendOrEdit(chatId,
+                form.GetForm(author) + $"\r\n👎 дизлайк",
+                messageId,
+                null,
                 form.ImageId
-                );
+            );
 
             return Watch_forms(chatId, null, person);
         }
@@ -481,14 +738,14 @@ namespace vkteams.Services
         {
             var form = DBContext.Forms.FindById(formId);
             var author = DBContext.Persons.FindById(form.Author.Id);
-            DBContext.WatchedForms.Insert(new WatchedForm()
+            DBContext.ReactionOnForms.Insert(new ReactionOnForm()
             {
                 MainForm = new Form()
                 {
                     Id = person.CurrentForm.Id
                 },
-                Watched = form,
-                Response = ResponseType.Reported,
+                RequestedForm = form,
+                Request = ReactionType.Reported,
             });
 
             QueueService.Dequeue(person);
@@ -499,9 +756,11 @@ namespace vkteams.Services
                 VKTeamsAPI.AnswerCallbackQuery(source.payload.queryId, "Жалоба отправлена. Анкета скрыта от вас.");
             }
 
-            VKTeamsAPI.SendOrEdit(chatId, form.GetForm(author), messageId,
-                new InlineKeyboardMarkup()
-                    .AddButtonDown("Жалоба", ""),
+            //Убираем лишние кнопки из сообщения
+            VKTeamsAPI.SendOrEdit(chatId,
+                form.GetForm(author) + $"\r\n👮‍♀️ жалоба",
+                messageId,
+                null,
                 form.ImageId
             );
 
@@ -521,7 +780,7 @@ namespace vkteams.Services
         private string Message(object chatId, Person person, Guid formId)
         {
             var form = DBContext.Forms.FindById(formId);
-            person.WaitingTextType = WaitingTextType.Message;
+            person.WaitingText = WaitingTextType.Message;
             person.FormToMessage = form;
             DBContext.Persons.Update(person);
 
@@ -539,32 +798,33 @@ namespace vkteams.Services
             var form = DBContext.Forms.FindById(person.FormToMessage.Id);
             var author = DBContext.Persons.FindById(form.Author.Id);
 
-            person.WaitingTextType = WaitingTextType.None;
+            person.WaitingText = WaitingTextType.None;
             person.FormToMessage = null;
             DBContext.Persons.Update(person);
 
-            //Отправка получателю
-            VKTeamsAPI.SendOrEdit(person.TeamsUserLogin, msg);
-
-            DBContext.WatchedForms.Insert(new WatchedForm()
-            {
-                MainForm = new Form()
-                {
-                    Id = person.CurrentForm.Id
-                },
-                Watched = form,
-                Response = ResponseType.LikedWithMessage,
-            });
-
             QueueService.Dequeue(person);
 
-            VKTeamsAPI.SendOrEdit(chatId, form.GetForm(author), messageId,
-                new InlineKeyboardMarkup()
-                    .AddButtonDown("Лайк и сообщение", ""),
+            //Убираем лишние кнопки из сообщения
+            VKTeamsAPI.SendOrEdit(chatId,
+                form.GetForm(author) + $"\r\n👍 лайк и ✉️ сообщение",
+                messageId,
+                null,
                 form.ImageId
-                );
+            );
 
-            VKTeamsAPI.SendOrEdit(chatId, "Сообщение отправлено, ждем реакции!");
+            var isMatch = SetReaction(person.CurrentForm, form, ReactionType.LikedWithMessage, msg);
+            if (isMatch)
+            {
+                //Отправляем уведомления о матчах
+                LikeDeliveryService.SendNewMathesNotification(author);
+                LikeDeliveryService.SendNewMathesNotification(person);
+            }
+            else
+            {
+                //Отправляем уведомление о лайке
+                LikeDeliveryService.SendNewLikesNotification(author);
+                VKTeamsAPI.SendOrEdit(chatId, "Сообщение отправлено, ждем реакции!");
+            }
 
             return Watch_forms(chatId, null, person);
         }
@@ -572,7 +832,7 @@ namespace vkteams.Services
         [TGPointer("cancel_message")]
         private string CancelMessage(object chatId, object messageId, Person person)
         {
-            person.WaitingTextType = WaitingTextType.None;
+            person.WaitingText = WaitingTextType.None;
             person.FormToMessage = null;
             DBContext.Persons.Update(person);
 
@@ -588,7 +848,7 @@ namespace vkteams.Services
         [TGPointer("set_image")]
         private string SetImage(object chatId, object messageId, Person person, Event source)
         {
-            person.WaitingTextType = WaitingTextType.None;
+            person.WaitingText = WaitingTextType.None;
             person.ImageId = source.payload.parts.FirstOrDefault(x => x.type == PartType.File).payload.fileId;
             DBContext.Persons.Update(person);
 
@@ -601,7 +861,7 @@ namespace vkteams.Services
         [TGPointer("set_lastimage")]
         private string SetLastImage(object chatId, object messageId, Person person)
         {
-            person.WaitingTextType = WaitingTextType.None;
+            person.WaitingText = WaitingTextType.None;
             DBContext.Persons.Update(person);
 
             var currentForm = DBContext.Forms.FindById(person.CurrentForm.Id);
@@ -610,10 +870,34 @@ namespace vkteams.Services
             return MyForm(chatId, messageId, person);
         }
 
+        [TGPointer("set_text")]
+        private string SetText(object chatId, object messageId, Person person, string text)
+        {
+            person.WaitingText = WaitingTextType.None;
+            DBContext.Persons.Update(person);
+
+            var currentForm = DBContext.Forms.FindById(person.CurrentForm.Id);
+            currentForm.Text = text;
+            DBContext.Forms.Update(currentForm);
+            return MyForm(chatId, messageId, person);
+        }
+
+        [TGPointer("set_textNone")]
+        private string SetTextNone(object chatId, object messageId, Person person)
+        {
+            person.WaitingText = WaitingTextType.None;
+            DBContext.Persons.Update(person);
+
+            var currentForm = DBContext.Forms.FindById(person.CurrentForm.Id);
+            currentForm.Text = string.Empty;
+            DBContext.Forms.Update(currentForm);
+            return MyForm(chatId, messageId, person);
+        }
+
         [TGPointer("set_ageofpairmin")]
         private string SetAgeOfPairMin(object chatId, object messageId, Person person, int age)
         {
-            person.WaitingTextType = WaitingTextType.None;
+            person.WaitingText = WaitingTextType.None;
             DBContext.Persons.Update(person);
 
             var currentForm = DBContext.Forms.FindById(person.CurrentForm.Id);
@@ -625,7 +909,7 @@ namespace vkteams.Services
         [TGPointer("set_ageofpairmax")]
         private string SetAgeOfPairMax(object chatId, object messageId, Person person, int age)
         {
-            person.WaitingTextType = WaitingTextType.None;
+            person.WaitingText = WaitingTextType.None;
             DBContext.Persons.Update(person);
 
             var currentForm = DBContext.Forms.FindById(person.CurrentForm.Id);
@@ -637,7 +921,7 @@ namespace vkteams.Services
         [TGPointer("set_ageofpairnone")]
         private string SetAgeOfPairNone(object chatId, object messageId, Person person)
         {
-            person.WaitingTextType = WaitingTextType.None;
+            person.WaitingText = WaitingTextType.None;
             DBContext.Persons.Update(person);
 
             var currentForm = DBContext.Forms.FindById(person.CurrentForm.Id);
@@ -693,7 +977,7 @@ namespace vkteams.Services
         private string SetAge(object chatId, object messageId, Person person, int age)
         {
             person.Age = age;
-            person.WaitingTextType = WaitingTextType.None;
+            person.WaitingText = WaitingTextType.None;
             DBContext.Persons.Update(person);
 
             var currentForm = DBContext.Forms.FindById(person.CurrentForm.Id);
@@ -762,7 +1046,11 @@ namespace vkteams.Services
         [TGPointer("return_oldform")]
         public string ReturnOldForm(object chatId, object messageId, Person person)
         {
-            var oldForm = DBContext.Forms.Query().Where(x => x.Author.Id == person.Id).OrderByDescending(x => x.Created).First();
+            var oldForm = DBContext.Forms.Query()
+                .Where(x => x.Author.Id == person.Id)
+                .Where(x => x.IsCompleted)
+                .OrderByDescending(x => x.Created)
+                .First();
             person.CurrentForm = oldForm;
             DBContext.Persons.Update(person);
 
@@ -775,10 +1063,42 @@ namespace vkteams.Services
         [TGPointer("view_response")]
         public string ViewResponse(object chatId, object messageId, Person person, Guid watchId)
         {
-            var watch = DBContext.WatchedForms.FindById(watchId);
+            var watch = DBContext.ReactionOnForms.FindById(watchId);
             
 
             return MyForm(chatId, messageId, person);
+        }
+
+        private static bool SetReaction(Form mainForm, Form requestedForm, ReactionType reactionType, string message = null)
+        {
+            if (mainForm is null)
+            {
+                throw new ArgumentNullException(nameof(mainForm));
+            }
+
+            var allreadyRequested = DBContext.ReactionOnForms.Query()
+                .Where(x => x.MainForm.Id == requestedForm.Id && x.RequestedForm.Id == mainForm.Id)
+                .FirstOrDefault();
+
+            if (allreadyRequested != null) //Ответный лайк уже получен
+            {
+                allreadyRequested.IsResponsed = true;
+                allreadyRequested.Response = reactionType;
+                allreadyRequested.ResponseTime = DateTime.Now;
+                DBContext.ReactionOnForms.Update(allreadyRequested);
+                return true;
+            }
+            else //Мы делаем первый шаг
+            {
+                DBContext.ReactionOnForms.Insert(new ReactionOnForm()
+                {
+                    MainForm = mainForm,
+                    RequestedForm = requestedForm,
+                    Request = reactionType,
+                    Message = message,
+                });
+                return false;
+            }
         }
     }
 }

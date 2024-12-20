@@ -3,11 +3,44 @@ using vkteams.Enums;
 
 namespace vkteams.Tests
 {
-    public class CreateForms
+    public class TestFormFactory
     {
         public static Random Random = new Random();
-        public static string[] Cities = new string[] { string.Empty, "Ульяновск", "Казнь" };
-        public static Person[] Persons = DBContext.Persons.FindAll().ToArray();
+        public static string[] Cities = new string[] { string.Empty, "Санкт-Петербург", "Ульяновск", "Казнь" };
+        public static Person[] Persons = DBContext.Persons.FindAll().ToArray()
+            /*.Where(x => x.TeamsUserLogin == "marsel.khabibullin@simbirsoft.com").ToArray()*/; //todo убрать тестовый блок
+
+        /// <summary>
+        /// Удаляет все анкеты, реации и страйки
+        /// </summary>
+        public void DeleteAllFormData()
+        {
+            DBContext.Forms.DeleteAll();
+            DBContext.ReactionOnForms.DeleteAll();
+            DBContext.Strikes.DeleteAll();
+        }
+
+        /// <summary>
+        /// Создает 100 тестовых анкет
+        /// </summary>
+        public void GenerateTest()
+        {
+            Random random = new Random();
+            var personTable = DBContext.Forms;
+            Func<Form>[] funcs = new Func<Form>[]
+            {
+                () => CreateClubForm(),
+                () => CreateHelpForm(),
+                () => CreateRegularForm(),
+                () => CreateFriendshipForm(),
+            };
+            foreach (var item in Enumerable.Range(0, 100))
+            {
+                personTable.Insert(funcs[random.Next(funcs.Length)]());
+            }
+            DBContext.DB.Checkpoint();
+        }
+
         public Form CreateRegularForm()
         {
             var city = Cities[Random.Next(Cities.Length)];

@@ -1,11 +1,13 @@
-﻿using System.Diagnostics;
-using System.Text;
+﻿using System.Text;
 
 namespace vkteams.Services
 {
+    /// <summary>
+    /// Логирование ошибок в файл
+    /// </summary>
     public class LogService : IDisposable
     {
-        public StreamWriter LogWriter { get; set; } = new StreamWriter($"/logs/log_{DateTime.Now:g}", Encoding.UTF8, new FileStreamOptions()
+        public StreamWriter LogWriter { get; set; } = new StreamWriter($"logs/log_{DateTime.Now:g}.txt", Encoding.UTF8, new FileStreamOptions()
         {
             Access = FileAccess.Write,
             Share = FileShare.Write,
@@ -25,7 +27,7 @@ namespace vkteams.Services
 
         public void Log(string message)
         {
-            LogWriter.WriteLine(message.Replace("***", "%*%*%*") + "\r\n***");
+            LogWriter.WriteLine(message.Replace("***", "%*%*%*") + "\r\n***"); //todo - файл остается пустым
         }
 
         public void Log(Exception exception)
