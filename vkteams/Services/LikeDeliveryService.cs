@@ -1,5 +1,6 @@
 ﻿using vkteams.Entities;
 using vkteams.Enums;
+using vkteams.Xtensions;
 
 namespace vkteams.Services
 {
@@ -66,7 +67,7 @@ namespace vkteams.Services
         {
             var likes = GetLikesByPerson(person);
             return person.SendMessage(VkteamsService, $"Вашей анкетой кто-то заинтересовался!" +
-                $"\r\nУ вас {likes.Count()} новых лайков.",
+                $"\r\nУ вас {likes.Count().TrueNumbers("новый лайк", "новых лайка", "новых лайков")}.",
                 new InlineKeyboardMarkup()
                     .AddButtonRight("Посмотреть лайки", "/view_likes"));
         }
@@ -75,7 +76,7 @@ namespace vkteams.Services
         {
             var likes = GetMatchesByPerson(person);
             return person.SendMessage(VkteamsService, $"Это МАТЧ!" +
-                $"\r\nУ вас {likes.Count()} взаимных лайков.",
+                $"\r\nУ вас {likes.Count().TrueNumbers("взаимный лайк", "взаимных лайка", "взаимных лайков")}.",
                 new InlineKeyboardMarkup()
                     .AddButtonRight("Посмотреть взаимные лайки", "/view_mathes"));
         }

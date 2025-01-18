@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("vkteams")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9418e396af7197671e22f112e902fde84039a250")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0a2e93a60274e71f991a205cbab6d0d4e88f85e2")]
 [assembly: System.Reflection.AssemblyProductAttribute("vkteams")]
 [assembly: System.Reflection.AssemblyTitleAttribute("vkteams")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

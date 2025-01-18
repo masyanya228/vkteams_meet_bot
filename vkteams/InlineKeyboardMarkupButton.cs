@@ -5,7 +5,7 @@
         public string text { get; set; }
         public string url { get; set; }
         public string callbackData { get; set; }
-        public string style { get; set; } = "primary";
+        public InlineKeyboardButtonStyle style { get; set; } =  InlineKeyboardButtonStyle.Primary;
 
         public InlineKeyboardMarkupButton(string text, string callbackData)
         {
@@ -13,11 +13,11 @@
             this.callbackData = callbackData;
         }
 
-        public InlineKeyboardMarkupButton(string text, string url, string style = null)
+        public InlineKeyboardMarkupButton(string text, string url, InlineKeyboardButtonStyle style = InlineKeyboardButtonStyle.Primary)
         {
             this.text = text;
             this.url = url;
-            this.style = style ?? this.style;
+            this.style = style;
         }
     }
 }

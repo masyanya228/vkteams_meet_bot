@@ -25,7 +25,18 @@ namespace vkteams.Services
             else
             {
                 //todo - Тут баг, если кончились анкеты, выбрасывается исключение. Вместо этого нужно показать пользователю сообщение "Закончились анкеты, приходите позже"
-                RelevantQueues[person] = CreateQueue(person);
+                try
+                {
+                    RelevantQueues[person] = CreateQueue(person);
+                }
+                catch (ArgumentOutOfRangeException aex)
+                {
+                    return null;
+                }
+                catch (Exception ex)
+                {
+                    throw;
+                }
                 return RelevantQueues[person].Peek();
             }
         }
@@ -162,6 +173,8 @@ namespace vkteams.Services
                         return true;
                 });
             }
+            if (!queue.Any())
+                throw new ArgumentOutOfRangeException("Анкеты кончились");
             return new Queue<Form>(queue.Take(50).ToArray());
         }
     }

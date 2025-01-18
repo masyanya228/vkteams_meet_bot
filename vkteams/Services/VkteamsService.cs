@@ -330,7 +330,7 @@ namespace vkteams.Services
                 $"Напишите текст вашей анкеты.",
                 messageId,
                 new InlineKeyboardMarkup()
-                    .AddButtonDownIf(() => currentForm.Type == FormType.Frendship, $"Оставить пустым", $"/set_textNone")
+                    .AddButtonDownIf(() => currentForm.Type == FormType.Frendship, $"Оставить пустым", $"/set_textnone")
             );
         }
 
@@ -542,15 +542,17 @@ namespace vkteams.Services
             request.Response = ReactionType.Liked;
             DBContext.ReactionOnForms.Update(request);
 
+            string text = form.GetForm(author);
+            text += $"\r\n\r\nСсылка: @[{author.TeamsUserLogin}]";
+            text += $"\r\n👍 МАТЧ 👍";
+
             //Убираем лишние кнопки из сообщения
-            VKTeamsAPI.SendOrEdit(chatId, form.GetForm(author), messageId,
-                new InlineKeyboardMarkup()
-                    .AddButtonDown("Ответный лайк", "")
-                    .AddUrlDown($"Чат с {author.FirstName}", $"@{author.TeamsUserLogin}")
-                    .AddUrlDown($"Чат с {author.FirstName}", $"@[{author.TeamsUserLogin}]")
-                    .AddUrlDown($"Чат с {author.FirstName}", $"https://myteam.mail.ru/webim/{author.TeamsUserLogin}"),
-                form.ImageId
-            );
+            VKTeamsAPI.SendOrEdit(
+                chatId,
+                text,
+                messageId,
+                null,
+                form.ImageId);
 
             LikeDeliveryService.SendNewMathesNotification(author);
 
@@ -656,8 +658,7 @@ namespace vkteams.Services
                     $"\r\nВаша анкета осталась активной. Возможно она кого-то заинтересует, тогда вам придет уведомление.",
                     null,
                     new InlineKeyboardMarkup()
-                        .AddButtonDown("🔍 Смотреть анкеты", "/watch_forms")
-                        .AddButtonDown("📝 Заполнить анкету заного", "/create_form"));
+                        .AddButtonRight("Моя анкета", "/my_form"));
             }
             var author = DBContext.Persons.FindById(nextForm.Author.Id);
             return VKTeamsAPI.SendOrEdit(
@@ -882,7 +883,7 @@ namespace vkteams.Services
             return MyForm(chatId, messageId, person);
         }
 
-        [TGPointer("set_textNone")]
+        [TGPointer("set_textnone")]
         private string SetTextNone(object chatId, object messageId, Person person)
         {
             person.WaitingText = WaitingTextType.None;
