@@ -11,5 +11,9 @@ namespace vkteams.DTOs.Teams
 
         [JsonConverter(typeof(JsonStringEnumConverter))]
         public EventType type { get; set; }
+
+        public string GetChatId() => payload.chat?.chatId ?? payload.from.userId;
+
+        public string GetQueryId() => payload.queryId;
     }
 }
