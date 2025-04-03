@@ -40,6 +40,8 @@ namespace vkteams.Entities
 
         public DateTime LastActivity { get; set; } = DateTime.Now;
 
+        public bool IsActive { get; set; }
+
         public Form GetCurrentForm()
         {
             if (CurrentForm != null)

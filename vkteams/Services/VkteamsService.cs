@@ -31,6 +31,58 @@ namespace vkteams.Services
         [TGPointer("start", "menu")]
         private string Start(object chatId, object messageId, Person person)
         {
+            var state = person.IsActive ? "Участвую" : "Не участвую";
+            return VKTeamsAPI.SendOrEdit(chatId, $"Участие в Random Coffee" +
+                $"\r\n{state}",
+                messageId,
+                new InlineKeyboardMarkup()
+                    .AddButtonRight(person.IsActive ? "Отписаться" : "Участвовать", "/switch_state")
+            );
+        }
+
+        [TGPointer("switch_state")]
+        private string SwitchState(object chatId, object messageId, Person person)
+        {
+            person.IsActive = !person.IsActive;
+            DBContext.Persons.Update(person);
+            return Start(chatId, messageId, person);
+        }
+
+        [TGPointer("shufle")]
+        private string Shufle(object chatId, object messageId, Person person)
+        {
+            if (person.TeamsUserLogin != "marsel.khabibullin@simbirsoft.com")
+                return Start(chatId, messageId, person);
+            var pairs = new ShafleService().Shafle(DBContext.Persons.Query().Where(x => x.IsActive).ToList(), out IList<Pair> doubles, out Stack<Person> withOutPair, DateTime.Now);
+            foreach (var pair in pairs)
+            {
+                if (pair.IsThirdPerson)
+                {
+                    VKTeamsAPI.SendOrEdit(pair.Person.TeamsUserLogin, $"Наступил долгожданный день! Ваши собеседники:" +
+                        $"\r\n@[{pair.SubPerson.TeamsUserLogin}]" +
+                        $"\r\n@[{pair.ThirdPerson.TeamsUserLogin}]"
+                        , null);
+                    VKTeamsAPI.SendOrEdit(pair.SubPerson.TeamsUserLogin, $"Наступил долгожданный день! Ваши собеседники:" +
+                        $"\r\n@[{pair.Person.TeamsUserLogin}]" +
+                        $"\r\n@[{pair.ThirdPerson.TeamsUserLogin}]"
+                        , null);
+                    VKTeamsAPI.SendOrEdit(pair.ThirdPerson.TeamsUserLogin, $"Наступил долгожданный день! Ваши собеседники:" +
+                        $"\r\n@[{pair.Person.TeamsUserLogin}]" +
+                        $"\r\n@[{pair.SubPerson.TeamsUserLogin}]"
+                        , null);
+                }
+                else
+                {
+                    VKTeamsAPI.SendOrEdit(pair.Person.TeamsUserLogin, $"Наступил долгожданный день! Ваш собеседник: @[{pair.SubPerson.TeamsUserLogin}]", null);
+                    VKTeamsAPI.SendOrEdit(pair.SubPerson.TeamsUserLogin, $"Наступил долгожданный день! Ваш собеседник: @[{pair.Person.TeamsUserLogin}]", null);
+                }
+            }
+            VKTeamsAPI.SendOrEdit(chatId, $"Пар: {pairs.Count()}; Дубликатов: {doubles.Count}; Без пары: {withOutPair.Count}");
+            return Start(chatId, null, person);
+        }
+
+        private string _Start(object chatId, object messageId, Person person)
+        {
             var newLikes = LikeDeliveryService.GetLikesByPerson(person);
             var newMatches = LikeDeliveryService.GetMatchesByPerson(person);
             return VKTeamsAPI.SendOrEdit(chatId, "/rules - правила" +

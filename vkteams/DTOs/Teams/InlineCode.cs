@@ -1,4 +1,4 @@
-﻿namespace vkteams
+﻿namespace vkteams.DTOs.Teams
 {
     public class InlineCode
     {
