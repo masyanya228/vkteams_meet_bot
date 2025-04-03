@@ -85,8 +85,6 @@ namespace vkteams
 
         public string SendOrEdit(object chatId, string text, object msgId = null, InlineKeyboardMarkup inlineKeyboard = null, string imageId = null)
         {
-            //chatId = "marsel.khabibullin@simbirsoft.com";//todo убрать тестовый блок
-
             return msgId == null
                         ? imageId == null
                             ? Send(chatId, text, inlineKeyboard)
@@ -116,8 +114,6 @@ namespace vkteams
 
         public string Delete(object chatId, object messageId)
         {
-            //chatId = "marsel.khabibullin@simbirsoft.com";//todo убрать тестовый блок
-
             var response = new HttpClient().GetAsync(
                 APIUrl + "/messages/deleteMessages" + $"?token={Token}&chatId={chatId}&msgId={messageId}").GetAwaiter().GetResult();
             return response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
