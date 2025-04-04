@@ -1,4 +1,6 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 using vkteams;
 using vkteams.Services;
@@ -7,10 +9,25 @@ public class Program
 {
     private static void Main(string[] args)
     {
-        LogService logService = new LogService();
+        //IoC - рабочий
+        IServiceCollection services = new ServiceCollection();
+        services.AddSingleton(typeof(LogService), new LogService());
+        var serviceProvider = services.BuildServiceProvider();
+        var logService = serviceProvider.GetService<LogService>();
+
+        //App config - рабочий
+        IConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
+        configurationBuilder.AddEnvironmentVariables();
+        configurationBuilder.AddJsonFile("appsettings.json");
+        var config = configurationBuilder.Build();
+        var apiKey = config.GetValue("VKTeamsApiKey", string.Empty);
+
+        //Host - нерабочий
+        ConfigureHost(Host.CreateDefaultBuilder(args)).Build().Run();
+
         AppDomain.CurrentDomain.ProcessExit += new EventHandler((object sender, EventArgs e) => ConsoleCtrlCheck(sender, e, logService));
 
-        new VkteamsService(logService, new VKTeamsAPI(logService, GetVKTeamsApiKey()));
+        new VkteamsService(logService, new VKTeamsAPI(logService, apiKey));
     }
 
     private static void ConsoleCtrlCheck(object sender, EventArgs e, LogService logService)
@@ -22,13 +39,16 @@ public class Program
         Console.WriteLine(res);
     }
 
-    public static string GetVKTeamsApiKey()
-    {
-        using (StreamReader r = new StreamReader("appsettings.json"))
+    public static IHostBuilder ConfigureHost(IHostBuilder host) => host
+        .ConfigureAppConfiguration(builder =>
         {
-            string json = r.ReadToEnd();
-            var items = JObject.Parse(json);
-            return items.SelectToken("VKTeamsApiKey").ToString();
-        }
-    }
+            builder.AddEnvironmentVariables();
+            builder.AddJsonFile("appsettings.json");
+            var config = builder.Build();
+            var apiKey = config.GetValue("VKTeamsApiKey", string.Empty);
+        })
+        .ConfigureServices((context, services) =>
+        {
+            var configuration = context.Configuration;
+        });
 }
